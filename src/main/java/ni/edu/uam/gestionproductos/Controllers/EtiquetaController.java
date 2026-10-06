@@ -1,7 +1,10 @@
 package ni.edu.uam.gestionproductos.Controllers;
 
-import ni.edu.uam.gestionproductos.Entity.Etiqueta;
-import ni.edu.uam.gestionproductos.Repositories.EtiquetaRepository;
+import jakarta.validation.Valid;
+import ni.edu.uam.gestionproductos.DTO.EtiquetaRequestDTO;
+import ni.edu.uam.gestionproductos.DTO.EtiquetaResponseDTO;
+import ni.edu.uam.gestionproductos.Services.EtiquetaService;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -10,19 +13,37 @@ import java.util.List;
 @RequestMapping("/api/etiquetas")
 public class EtiquetaController {
 
-    private final EtiquetaRepository repository;
+    private final EtiquetaService etiquetaService;
 
-    public EtiquetaController(EtiquetaRepository repository) {
-        this.repository = repository;
+    public EtiquetaController(EtiquetaService etiquetaService) {
+        this.etiquetaService = etiquetaService;
     }
 
     @GetMapping
-    public List<Etiqueta> listar() {
-        return repository.findAll();
+    public List<EtiquetaResponseDTO> listar() {
+        return etiquetaService.listar();
+    }
+
+    @GetMapping("/{id}")
+    public EtiquetaResponseDTO buscar(@PathVariable Integer id) {
+        return etiquetaService.buscarPorId(id);
     }
 
     @PostMapping
-    public Etiqueta guardar(@RequestBody Etiqueta etiqueta) {
-        return repository.save(etiqueta);
+    public EtiquetaResponseDTO guardar(@Valid @RequestBody EtiquetaRequestDTO dto) {
+        return etiquetaService.guardar(dto);
+    }
+
+    @PutMapping("/{id}")
+    public EtiquetaResponseDTO actualizar(
+            @PathVariable Integer id,
+            @Valid @RequestBody EtiquetaRequestDTO dto) {
+        return etiquetaService.actualizar(id, dto);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> eliminar(@PathVariable Integer id) {
+        etiquetaService.eliminar(id);
+        return ResponseEntity.noContent().build();
     }
 }

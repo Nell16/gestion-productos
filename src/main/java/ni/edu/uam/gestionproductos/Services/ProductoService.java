@@ -1,6 +1,7 @@
 package ni.edu.uam.gestionproductos.Services;
 
 import ni.edu.uam.gestionproductos.DTO.ProductoRequestDTO;
+import ni.edu.uam.gestionproductos.DTO.ProductoResponseDTO;
 import ni.edu.uam.gestionproductos.Entity.Categoria;
 import ni.edu.uam.gestionproductos.Entity.Etiqueta;
 import ni.edu.uam.gestionproductos.Entity.Producto;
@@ -28,69 +29,77 @@ public class ProductoService {
         this.etiquetaRepository = etiquetaRepository;
     }
 
-    public List<Producto> listar() {
-        return productoRepository.findAll();
+    @Transactional(readOnly = true)
+    public List<ProductoResponseDTO> listar() {
+        return productoRepository.findAll().stream()
+                .map(ProductoResponseDTO::from)
+                .toList();
     }
 
-    public Producto buscarPorId(Integer id) {
-        return productoRepository.findById(id)
-                .orElseThrow(() ->
-                        new RuntimeException("Producto no encontrado"));
+    @Transactional(readOnly = true)
+    public ProductoResponseDTO buscarPorId(Integer id) {
+        return ProductoResponseDTO.from(obtener(id));
     }
 
-    public Producto guardar(ProductoRequestDTO dto) {
-        Categoria categoria = categoriaRepository
-                .findById(dto.getCategoriaId())
-                .orElseThrow(() ->
-                        new RuntimeException("Categoría no encontrada"));
-
+    public ProductoResponseDTO guardar(ProductoRequestDTO dto) {
         Producto producto = new Producto();
-        aplicarDatos(producto, dto, categoria);
-        return productoRepository.save(producto);
+        aplicarDatos(producto, dto);
+        return ProductoResponseDTO.from(productoRepository.save(producto));
     }
 
-    public Producto actualizar(Integer id, ProductoRequestDTO dto) {
-        Producto producto = buscarPorId(id);
-
-        Categoria categoria = categoriaRepository
-                .findById(dto.getCategoriaId())
-                .orElseThrow(() ->
-                        new RuntimeException("Categoría no encontrada"));
-
-        aplicarDatos(producto, dto, categoria);
-        return productoRepository.save(producto);
+    public ProductoResponseDTO actualizar(Integer id, ProductoRequestDTO dto) {
+        Producto producto = obtener(id);
+        aplicarDatos(producto, dto);
+        return ProductoResponseDTO.from(productoRepository.save(producto));
     }
 
     public void eliminar(Integer id) {
         productoRepository.deleteById(id);
     }
 
-    public List<Producto> listarPorCategoria(Integer categoriaId) {
-        return productoRepository.findByCategoriaId(categoriaId);
+    @Transactional(readOnly = true)
+    public List<ProductoResponseDTO> listarPorCategoria(Integer categoriaId) {
+        return productoRepository.findByCategoriaId(categoriaId).stream()
+                .map(ProductoResponseDTO::from)
+                .toList();
     }
 
     @Transactional
-    public Producto agregarEtiqueta(Integer productoId, Integer etiquetaId) {
-        Producto producto = buscarPorId(productoId);
+    public ProductoResponseDTO agregarEtiqueta(Integer productoId, Integer etiquetaId) {
+        Producto producto = obtener(productoId);
         Etiqueta etiqueta = etiquetaRepository.findById(etiquetaId)
                 .orElseThrow(() ->
                         new RuntimeException("Etiqueta no encontrada"));
         producto.getEtiquetas().add(etiqueta);
-        return productoRepository.save(producto);
+        return ProductoResponseDTO.from(productoRepository.save(producto));
     }
 
     @Transactional
-    public Producto quitarEtiqueta(Integer productoId, Integer etiquetaId) {
-        Producto producto = buscarPorId(productoId);
+    public ProductoResponseDTO quitarEtiqueta(Integer productoId, Integer etiquetaId) {
+        Producto producto = obtener(productoId);
         producto.getEtiquetas().removeIf(etiqueta -> etiqueta.getId().equals(etiquetaId));
-        return productoRepository.save(producto);
+        return ProductoResponseDTO.from(productoRepository.save(producto));
     }
 
-    public List<Producto> listarPorEtiqueta(Integer etiquetaId) {
-        return productoRepository.findByEtiquetasId(etiquetaId);
+    @Transactional(readOnly = true)
+    public List<ProductoResponseDTO> listarPorEtiqueta(Integer etiquetaId) {
+        return productoRepository.findByEtiquetasId(etiquetaId).stream()
+                .map(ProductoResponseDTO::from)
+                .toList();
     }
 
-    private void aplicarDatos(Producto producto, ProductoRequestDTO dto, Categoria categoria) {
+    private Producto obtener(Integer id) {
+        return productoRepository.findById(id)
+                .orElseThrow(() ->
+                        new RuntimeException("Producto no encontrado"));
+    }
+
+    private void aplicarDatos(Producto producto, ProductoRequestDTO dto) {
+        Categoria categoria = categoriaRepository
+                .findById(dto.getCategoriaId())
+                .orElseThrow(() ->
+                        new RuntimeException("Categoría no encontrada"));
+
         producto.setCodigo(dto.getCodigo());
         producto.setNombre(dto.getNombre());
         producto.setPrecioVenta(dto.getPrecioVenta());

@@ -1,8 +1,9 @@
 package ni.edu.uam.gestionproductos.Controllers;
 
 import jakarta.validation.Valid;
-import ni.edu.uam.gestionproductos.Entity.Proveedor;
-import ni.edu.uam.gestionproductos.Repositories.ProveedorRepository;
+import ni.edu.uam.gestionproductos.DTO.ProveedorRequestDTO;
+import ni.edu.uam.gestionproductos.DTO.ProveedorResponseDTO;
+import ni.edu.uam.gestionproductos.Services.ProveedorService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,44 +20,37 @@ import java.util.List;
 @RequestMapping("/api/proveedores")
 public class ProveedorController {
 
-    private final ProveedorRepository repository;
+    private final ProveedorService proveedorService;
 
-    public ProveedorController(ProveedorRepository repository) {
-        this.repository = repository;
+    public ProveedorController(ProveedorService proveedorService) {
+        this.proveedorService = proveedorService;
     }
 
     @GetMapping
-    public List<Proveedor> listar() {
-        return repository.findAll();
+    public List<ProveedorResponseDTO> listar() {
+        return proveedorService.listar();
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Proveedor> buscar(@PathVariable Integer id) {
-        return repository.findById(id).map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
+    public ProveedorResponseDTO buscar(@PathVariable Integer id) {
+        return proveedorService.buscarPorId(id);
     }
 
     @PostMapping
-    public Proveedor guardar(@Valid @RequestBody Proveedor proveedor) {
-        return repository.save(proveedor);
+    public ProveedorResponseDTO guardar(@Valid @RequestBody ProveedorRequestDTO dto) {
+        return proveedorService.guardar(dto);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Proveedor> actualizar(@PathVariable Integer id, @Valid @RequestBody Proveedor datos) {
-        return repository.findById(id).map(proveedor -> {
-            proveedor.setNombre(datos.getNombre());
-            proveedor.setTelefono(datos.getTelefono());
-            proveedor.setCorreo(datos.getCorreo());
-            proveedor.setActivo(datos.isActivo());
-            return ResponseEntity.ok(repository.save(proveedor));
-        }).orElseGet(() -> ResponseEntity.notFound().build());
+    public ProveedorResponseDTO actualizar(
+            @PathVariable Integer id,
+            @Valid @RequestBody ProveedorRequestDTO dto) {
+        return proveedorService.actualizar(id, dto);
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> eliminar(@PathVariable Integer id) {
-        if (!repository.existsById(id)) {
-            return ResponseEntity.notFound().build();
-        }
-        repository.deleteById(id);
+        proveedorService.eliminar(id);
         return ResponseEntity.noContent().build();
     }
 }

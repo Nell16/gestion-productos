@@ -1,7 +1,7 @@
 package ni.edu.uam.gestionproductos.Controllers;
 
 import ni.edu.uam.gestionproductos.DTO.ProductoRequestDTO;
-import ni.edu.uam.gestionproductos.Entity.Producto;
+import ni.edu.uam.gestionproductos.DTO.ProductoResponseDTO;
 import ni.edu.uam.gestionproductos.Services.ProductoService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -19,22 +19,22 @@ public class ProductoController {
     }
 
     @GetMapping
-    public List<Producto> listar() {
+    public List<ProductoResponseDTO> listar() {
         return productoService.listar();
     }
 
     @GetMapping("/{id}")
-    public Producto buscar(@PathVariable Integer id) {
+    public ProductoResponseDTO buscar(@PathVariable Integer id) {
         return productoService.buscarPorId(id);
     }
 
     @PostMapping
-    public Producto guardar(@RequestBody ProductoRequestDTO dto) {
+    public ProductoResponseDTO guardar(@RequestBody ProductoRequestDTO dto) {
         return productoService.guardar(dto);
     }
 
     @PutMapping("/{id}")
-    public Producto actualizar(
+    public ProductoResponseDTO actualizar(
             @PathVariable Integer id,
             @RequestBody ProductoRequestDTO dto) {
         return productoService.actualizar(id, dto);
@@ -47,12 +47,12 @@ public class ProductoController {
     }
 
     @GetMapping("/categoria/{categoriaId}")
-    public List<Producto> listarPorCategoria(@PathVariable Integer categoriaId) {
+    public List<ProductoResponseDTO> listarPorCategoria(@PathVariable Integer categoriaId) {
         return productoService.listarPorCategoria(categoriaId);
     }
 
     @PostMapping("/{productoId}/etiquetas/{etiquetaId}")
-    public Producto agregarEtiqueta(
+    public ProductoResponseDTO agregarEtiqueta(
             @PathVariable Integer productoId,
             @PathVariable Integer etiquetaId) {
         return productoService.agregarEtiqueta(productoId, etiquetaId);
@@ -67,7 +67,7 @@ public class ProductoController {
     }
 
     @GetMapping("/etiqueta/{etiquetaId}")
-    public List<Producto> listarPorEtiqueta(@PathVariable Integer etiquetaId) {
+    public List<ProductoResponseDTO> listarPorEtiqueta(@PathVariable Integer etiquetaId) {
         return productoService.listarPorEtiqueta(etiquetaId);
     }
 }

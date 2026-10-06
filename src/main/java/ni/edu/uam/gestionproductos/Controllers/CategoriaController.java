@@ -1,7 +1,9 @@
 package ni.edu.uam.gestionproductos.Controllers;
 
-import ni.edu.uam.gestionproductos.Entity.Categoria;
-import ni.edu.uam.gestionproductos.Repositories.CategoriaRepository;
+import ni.edu.uam.gestionproductos.DTO.CategoriaRequestDTO;
+import ni.edu.uam.gestionproductos.DTO.CategoriaResponseDTO;
+import ni.edu.uam.gestionproductos.Services.CategoriaService;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -10,19 +12,37 @@ import java.util.List;
 @RequestMapping("/api/categorias")
 public class CategoriaController {
 
-    private final CategoriaRepository repository;
+    private final CategoriaService categoriaService;
 
-    public CategoriaController(CategoriaRepository repository) {
-        this.repository = repository;
+    public CategoriaController(CategoriaService categoriaService) {
+        this.categoriaService = categoriaService;
     }
 
     @GetMapping
-    public List<Categoria> listar() {
-        return repository.findAll();
+    public List<CategoriaResponseDTO> listar() {
+        return categoriaService.listar();
+    }
+
+    @GetMapping("/{id}")
+    public CategoriaResponseDTO buscar(@PathVariable Integer id) {
+        return categoriaService.buscarPorId(id);
     }
 
     @PostMapping
-    public Categoria guardar(@RequestBody Categoria categoria) {
-        return repository.save(categoria);
+    public CategoriaResponseDTO guardar(@RequestBody CategoriaRequestDTO dto) {
+        return categoriaService.guardar(dto);
+    }
+
+    @PutMapping("/{id}")
+    public CategoriaResponseDTO actualizar(
+            @PathVariable Integer id,
+            @RequestBody CategoriaRequestDTO dto) {
+        return categoriaService.actualizar(id, dto);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> eliminar(@PathVariable Integer id) {
+        categoriaService.eliminar(id);
+        return ResponseEntity.noContent().build();
     }
 }
