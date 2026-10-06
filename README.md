@@ -2,141 +2,221 @@
 
 API REST con Spring Boot, Spring Data JPA, Hibernate y Flyway sobre PostgreSQL.
 
-## Preguntas
+Capas: **Controller → Service → Repository → Entity**, más **DTO** de entrada para productos.
+
+---
+
+## Estructura del proyecto
+
+```
+Controllers/   ProductoController, CategoriaController, ProveedorController, EtiquetaController
+Services/      ProductoService
+Repositories/  ProductoRepository, CategoriaRepository, ProveedorRepository, EtiquetaRepository
+Entity/        Producto, Categoria, Proveedor, Etiqueta
+DTO/           ProductoRequestDTO
+db/migration/  V1 … V4
+```
+
+---
+
+## Preguntas (práctica anterior)
 
 ### ¿Cuál es la función de Spring Data JPA?
 
-Reduce el código de persistencia: defines un repositorio (por ejemplo `JpaRepository`) y Spring genera las operaciones CRUD y consultas derivadas de los nombres de método, usando JPA por debajo.
+Reduce el código de persistencia: defines un repositorio (`JpaRepository`) y Spring genera CRUD y consultas por nombre de método.
 
 ### ¿Qué función cumple Hibernate?
 
-Es el motor ORM que traduce entidades Java a SQL: mapea clases a tablas, gestiona el ciclo de vida de los objetos y ejecuta las consultas contra la base de datos.
+Es el ORM que traduce entidades Java a SQL y ejecuta las operaciones contra PostgreSQL.
 
 ### ¿Qué diferencia existe entre JPA y Hibernate?
 
-**JPA** es la especificación (anotaciones e interfaces estándar: `@Entity`, `EntityManager`, etc.). **Hibernate** es una implementación de esa especificación. El código se escribe contra JPA; Hibernate es quien realmente persiste los datos.
+**JPA** es la especificación. **Hibernate** es una implementación de esa especificación.
 
 ### ¿Qué función cumple `@Entity`?
 
-Marca una clase como entidad JPA: Hibernate la trata como una tabla (o se mapea a una con `@Table`) y cada instancia corresponde a una fila.
+Marca una clase como tabla persistible; cada instancia es una fila.
 
 ### ¿Qué función cumple `@ManyToOne`?
 
-Define una relación muchos-a-uno. En este proyecto, varios productos pertenecen a una categoría y a un proveedor.
+Varios registros de un lado apuntan a uno del otro (varios productos → una categoría o un proveedor).
 
 ### ¿Qué función cumple `@JoinColumn`?
 
-Indica la columna de clave foránea en la tabla dueña de la relación (`categoria_id`, `proveedor_id` en `producto`).
+Nombra la columna FK en la tabla dueña (`categoria_id`, `proveedor_id`).
 
 ### ¿Qué función cumple `JpaRepository`?
 
-Interfaz de Spring Data JPA que aporta `save`, `findAll`, `findById`, `deleteById`, etc. Los repositorios del proyecto (`ProductoRepository`, `ProveedorRepository`, `CategoriaRepository`) la extienden.
+Aporta `save`, `findAll`, `findById`, `deleteById` y consultas derivadas.
 
 ### ¿Por qué se utilizan migraciones?
 
-Para versionar el esquema: cada cambio de tablas o datos se aplica de forma ordenada y repetible. Flyway evita que Hibernate cree o altere tablas a ciegas (`ddl-auto=validate`).
+Versionan el esquema (V1, V2, V3, V4) de forma ordenada y repetible. `ddl-auto=validate` solo comprueba que coincida.
 
 ### ¿Qué diferencia existe entre V1, V2 y V3?
 
 | Migración | Qué hace |
 |-----------|----------|
-| **V1** | Crea las tablas iniciales `categoria` y `producto`. |
-| **V2** | Agrega la columna `descripcion` a `producto`. |
-| **V3** | Crea `proveedor`, la FK `producto.proveedor_id`, inserta **dos proveedores** y **productos asociados**. |
-
-Flyway aplica V1 → V2 → V3 en ese orden y no vuelve a ejecutar un script ya aplicado.
+| **V1** | Tablas `categoria` y `producto`. |
+| **V2** | Columna `descripcion` en `producto`. |
+| **V3** | Tabla `proveedor`, FK `proveedor_id`, dos proveedores y productos. |
+| **V4** | Tablas `etiqueta` y `producto_etiqueta` (N a N). |
 
 ### ¿Qué problema puede producir una relación bidireccional al generar JSON?
 
-Si `Producto` apunta a `Proveedor` y `Proveedor` lista sus `productos`, Jackson entra en un ciclo infinito al serializar. Se evita con `@JsonIgnore` en un lado (aquí, en `Proveedor.productos`) o con `@JsonManagedReference` / `@JsonBackReference`.
+Ciclo infinito (producto → categoría → productos → …). Se evita con `@JsonIgnore` en `Categoria.productos` y `Proveedor.productos`.
 
 ---
 
-## Requisitos de la práctica
+## Preguntas de comprobación (esta entrega)
 
-| Requisito | Estado |
-|-----------|--------|
-| Migración V3 | `src/main/resources/db/migration/V3__crear_proveedor.sql` |
-| Entidad Proveedor | `Entity/Proveedor.java` |
-| Relación con Producto | `@ManyToOne` + `@JoinColumn(name = "proveedor_id")` en `Producto` |
-| ProveedorRepository | `Repositories/ProveedorRepository.java` |
-| ProveedorController | `GET/POST/PUT/DELETE` en `/api/proveedores` |
-| Dos proveedores | Insertados en V3 |
-| Productos asociados | `P-001` → proveedor 1, `P-002` → proveedor 2 |
-| Pruebas en Postman | Colección de peticiones abajo |
+### ¿Cuál es la función de una clase Service?
+
+Agrupa la lógica de negocio: validar IDs, armar entidades, asociar relaciones. El controlador solo recibe HTTP y delega.
+
+### ¿Por qué un controlador no debería contener toda la lógica de negocio?
+
+Porque mezcla HTTP con reglas de dominio, dificulta pruebas y reutilización. El servicio se puede usar desde otro controlador o prueba sin depender de la web.
+
+### ¿Qué es un DTO?
+
+Un objeto de transferencia: el JSON que entra o sale de la API, sin ser necesariamente la entidad de base de datos.
+
+### ¿Qué diferencia existe entre un DTO y una entidad JPA?
+
+La **entidad** está mapeada a una tabla (`@Entity`). El **DTO** (`ProductoRequestDTO`) solo transporta datos de la petición (`categoriaId` en lugar de un objeto `Categoria`).
+
+### ¿Qué ventaja tiene recibir `categoriaId` en lugar de una entidad `Categoria` completa?
+
+El cliente envía un identificador simple. El servicio carga la categoría real; se evitan JSON anidados incompletos y se valida que la categoría exista.
+
+### ¿Qué relación representan `@OneToMany` y `@ManyToOne`?
+
+Es la misma relación vista de los dos lados: muchos productos (`@ManyToOne`) pertenecen a una categoría (`@OneToMany` en `Categoria`).
+
+### ¿Dónde se almacena la clave foránea en la relación Categoria–Producto?
+
+En la tabla **`producto`**, columna **`categoria_id`**. `Categoria` no guarda IDs de productos; solo mapea la lista con `mappedBy = "categoria"`.
+
+### ¿Qué representa `@ManyToMany`?
+
+Una relación N a N: un producto puede tener varias etiquetas y una etiqueta puede aplicarse a varios productos.
+
+### ¿Cuál es la función de `@JoinTable`?
+
+Indica la tabla intermedia y las columnas FK (`producto_etiqueta.producto_id` y `etiqueta_id`).
+
+### ¿Por qué se necesita la tabla `producto_etiqueta`?
+
+Una columna en `producto` no puede guardar varios IDs de etiqueta de forma normalizada. La tabla puente guarda cada par producto–etiqueta.
+
+### ¿Qué responsabilidad corresponde al Repository?
+
+Acceso a datos: CRUD y consultas (`findByCategoriaId`, `findByEtiquetasId`). No decide reglas de negocio.
+
+### Explique el flujo: Cliente → Controller → Service → Repository → PostgreSQL
+
+1. **Cliente** (Postman) envía HTTP (JSON o path).
+2. **Controller** recibe la petición y llama al servicio.
+3. **Service** aplica la lógica (buscar categoría, armar `Producto`, agregar etiqueta).
+4. **Repository** ejecuta JPA/Hibernate.
+5. **PostgreSQL** persiste o consulta; la respuesta vuelve por el mismo camino.
+
+---
+
+## Entrega: evidencias
+
+| Evidencia | Dónde está |
+|-----------|------------|
+| Capas controller, service, repository, entity, dto | Paquetes listados arriba |
+| `ProductoService` | `Services/ProductoService.java` |
+| `ProductoRequestDTO` | `DTO/ProductoRequestDTO.java` |
+| CRUD de productos | GET/POST/PUT/DELETE `/api/productos` |
+| Productos por categoría | `GET /api/productos/categoria/{id}` |
+| Migración V4 | `V4__crear_etiquetas.sql` |
+| Entidad y repo `Etiqueta` | `Entity/Etiqueta.java`, `EtiquetaRepository` |
+| Relación N–N | `@ManyToMany` + `@JoinTable` en `Producto` |
+| Tabla `producto_etiqueta` | Creada en V4 |
+| Asociar etiquetas | `POST /api/productos/{id}/etiquetas/{id}` |
+| Reto 1 | `DELETE /api/productos/{id}/etiquetas/{id}` (solo quita el vínculo) |
+| Reto 2 | `GET /api/productos/etiqueta/{etiquetaId}` |
+
+---
+
+## Cómo ejecutar
+
+1. PostgreSQL con base `gestion_productos` (`application.properties`).
+2. Arrancar Spring Boot. Flyway aplica V1 → V4 (V4 inserta las 5 etiquetas pedidas).
 
 ---
 
 ## Pruebas en Postman
 
-Base URL: `http://localhost:8080`
+Base URL: `http://localhost:8080`  
+Header en POST/PUT: `Content-Type: application/json`
 
-### 1. Listar proveedores (deben verse los dos de V3)
+### CRUD productos
 
-`GET http://localhost:8080/api/proveedores`
+| Método | Endpoint | Operación |
+|--------|----------|-----------|
+| GET | `/api/productos` | Listar |
+| GET | `/api/productos/{id}` | Buscar |
+| POST | `/api/productos` | Crear |
+| PUT | `/api/productos/{id}` | Actualizar |
+| DELETE | `/api/productos/{id}` | Eliminar → **204 No Content** |
 
-### 2. Crear un proveedor
-
-`POST http://localhost:8080/api/proveedores`  
-Header: `Content-Type: application/json`
-
-```json
-{
-  "nombre": "Suministros del Norte",
-  "telefono": "7777-3333",
-  "correo": "norte@proveedores.com",
-  "activo": true
-}
-```
-
-### 3. Obtener un proveedor por id
-
-`GET http://localhost:8080/api/proveedores/1`
-
-### 4. Actualizar un proveedor
-
-`PUT http://localhost:8080/api/proveedores/1`
+**POST** `http://localhost:8080/api/productos`
 
 ```json
 {
-  "nombre": "Distribuidora Central Actualizada",
-  "telefono": "2222-1111",
-  "correo": "central@proveedores.com",
-  "activo": true
+    "codigo": "TEC-001",
+    "nombre": "Teclado mecánico",
+    "precioVenta": 75.50,
+    "existencia": 20,
+    "categoriaId": 2
 }
 ```
 
-### 5. Listar productos (deben traer categoría y proveedor)
+Si no existe categoría 2, use `categoriaId: 1` o cree una categoría antes.
 
-`GET http://localhost:8080/api/productos`
-
-### 6. Crear un producto asociado a un proveedor
-
-`POST http://localhost:8080/api/productos`
+**PUT** `http://localhost:8080/api/productos/1`
 
 ```json
 {
-  "codigo": "P-003",
-  "nombre": "Aceite 1L",
-  "descripcion": "Aceite vegetal",
-  "precioVenta": 45.50,
-  "existencia": 50,
-  "categoria": { "id": 1 },
-  "proveedor": { "id": 1 }
+    "codigo": "TEC-001",
+    "nombre": "Teclado mecánico RGB",
+    "precioVenta": 89.99,
+    "existencia": 15,
+    "categoriaId": 1
 }
 ```
 
-### 7. Crear categoría (si hace falta)
+**DELETE** `http://localhost:8080/api/productos/1` → 204
 
-`POST http://localhost:8080/api/categorias`
+### Por categoría
+
+`GET http://localhost:8080/api/productos/categoria/1`
+
+### Etiquetas
+
+**POST** `http://localhost:8080/api/etiquetas`
 
 ```json
 {
-  "nombre": "Limpieza",
-  "activa": true
+    "nombre": "Oferta"
 }
 ```
 
-### 8. Eliminar un proveedor (solo si no tiene productos, o fallará la FK)
+V4 ya inserta: Oferta, Importado, Empresarial, Portátil, Gaming.  
+`GET /api/etiquetas` para ver los ids.
 
-`DELETE http://localhost:8080/api/proveedores/3`
+**Asociar:** `POST http://localhost:8080/api/productos/2/etiquetas/1`
+
+**Reto 1 — quitar asociación:** `DELETE http://localhost:8080/api/productos/2/etiquetas/1` → 204. El producto y la etiqueta siguen existiendo.
+
+**Reto 2 — productos por etiqueta:** `GET http://localhost:8080/api/productos/etiqueta/1`
+
+### Proveedores y categorías (práctica anterior)
+
+- `GET/POST/PUT/DELETE /api/proveedores`
+- `GET/POST /api/categorias`
