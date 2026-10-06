@@ -2,9 +2,7 @@ package ni.edu.uam.gestionproductos.Controllers;
 
 import ni.edu.uam.gestionproductos.Entity.Categoria;
 import ni.edu.uam.gestionproductos.Repositories.CategoriaRepository;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -21,5 +19,10 @@ public class CategoriaController {
     @GetMapping
     public List<Categoria> listar() {
         return repository.findAll();
+    }
+
+    @PostMapping
+    public Categoria guardar(@RequestBody Categoria categoria) {
+        return repository.save(categoria);
     }
 }
