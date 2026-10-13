@@ -1,21 +1,170 @@
-# Gestión de productos
+# Gestión de productos — NicaMarket
 
-API REST con Spring Boot, Spring Data JPA, Hibernate y Flyway sobre PostgreSQL.
+API REST con Spring Boot, Spring Data JPA, Hibernate, Flyway y **autenticación JWT** (Spring Security 6 / OAuth2 Resource Server).
 
-Capas: **Controller → Service → Repository → Entity**, más **DTO** de entrada para productos.
+Rama de esta entrega: `seguridad-jwt`.
 
 ---
 
-## Estructura del proyecto
+## Seguridad JWT (práctica)
+
+### Caso
+
+Comercial NicaMarket, S. A. Protege el CRUD: solo usuarios autenticados consultan; solo ADMIN modifica.
+
+| Rol | Permisos |
+|-----|----------|
+| Invitado | `/api/publico/saludo`, `/api/auth/login` |
+| USER | Consultar productos y categorías |
+| ADMIN | Consultar y modificar productos y categorías |
+
+### Usuarios de laboratorio
+
+| Usuario | Contraseña | Rol |
+|---------|------------|-----|
+| `admin` | `Admin123!` | ADMIN |
+| `operador` | `Operador123!` | USER |
+
+Solo desarrollo. No usar en producción.
+
+### Configurar el secreto (obligatorio)
+
+1. Ejecutar `ni.edu.uam.gestionproductos.util.GenerarClave` (Main) y copiar el Base64.
+2. En IntelliJ → Run/Debug Configuration → Environment variables:
+   `JWT_SECRET_BASE64=<valor generado>`
+3. Reiniciar la aplicación.
+
+**No subir el secreto ni tokens al repositorio.**
+
+### Cómo arrancar
+
+1. PostgreSQL con base `gestion_productos`.
+2. Variable `JWT_SECRET_BASE64` configurada.
+3. Ejecutar la aplicación Spring Boot.
+
+### Endpoints de autenticación
+
+| Método | Ruta | Acceso |
+|--------|------|--------|
+| GET | `/api/publico/saludo` | Público |
+| POST | `/api/auth/login` | Público |
+| GET | `/api/auth/perfil` | Autenticado (JWT) |
+
+**Login**
+
+`POST http://localhost:8080/api/auth/login`
+
+```json
+{
+  "username": "admin",
+  "password": "Admin123!"
+}
+```
+
+Respuesta: `{ "token": "...", "type": "Bearer" }`.  
+En Postman: Authorization → Bearer Token → pegar `token`.
+
+### Reglas de autorización
+
+| Recurso | GET | POST / PUT / DELETE |
+|---------|-----|---------------------|
+| `/api/productos/**` | USER, ADMIN | solo ADMIN |
+| `/api/categorias/**` | USER, ADMIN | solo ADMIN (reto final) |
+| Otros `/api/**` | autenticado | autenticado |
+
+### Pruebas Postman (productos)
+
+| # | Solicitud | Token | Esperado |
+|---|-----------|-------|----------|
+| 1 | GET `/api/publico/saludo` | Sin token | 200 |
+| 2 | POST `/api/auth/login` (válido) | — | 200 + JWT |
+| 3 | POST `/api/auth/login` (mala clave) | — | 401 |
+| 4 | GET `/api/productos` | Sin token | 401 |
+| 5 | GET `/api/productos` | USER (`operador`) | 200 |
+| 6 | POST `/api/productos` | USER | 403 |
+| 7 | GET `/api/productos` | Token modificado | 401 |
+| 8 | POST `/api/productos` | ADMIN | 200 (si el JSON es válido) |
+
+Login USER:
+
+```json
+{ "username": "operador", "password": "Operador123!" }
+```
+
+### Reto final: categorías
+
+Mismas reglas que productos. Evidencias sugeridas:
+
+1. GET `/api/categorias` sin token → **401** (falta autenticación).
+2. GET `/api/categorias` con USER → **200**.
+3. POST `/api/categorias` con USER → **403** (autenticado, sin permiso).
+4. POST `/api/categorias` con ADMIN → **200** (datos válidos).
+5. PUT o DELETE con ADMIN → **200 / 204**; con token inválido → **401**.
+
+### Reto opcional
+
+`GET /api/auth/perfil` con Bearer Token → `username` y `roles` del JWT. Sin token → 401.
+
+### Archivos nuevos
 
 ```
-Controllers/   ProductoController, CategoriaController, ProveedorController, EtiquetaController
-Services/      ProductoService
-Repositories/  ProductoRepository, CategoriaRepository, ProveedorRepository, EtiquetaRepository
+config/SecurityConfig.java
+Controllers/AuthController.java
+Controllers/PublicoController.java
+DTO/LoginRequest.java
+DTO/LoginResponse.java
+Services/TokenService.java
+util/GenerarClave.java
+```
+
+### Autenticación vs autorización
+
+- **Autenticación**: ¿quién eres? (login + JWT válido).
+- **Autorización**: ¿qué puedes hacer? (roles USER / ADMIN → 403 si no alcanza).
+
+### Preguntas de cierre
+
+**¿En qué se diferencian HTTP 401 y 403?**  
+**401 Unauthorized**: no hay identidad válida (sin token, token inválido o vencido).  
+**403 Forbidden**: la identidad es válida, pero el rol no permite la operación.
+
+**¿Por qué no basta con leer el contenido de un JWT para confiar en él?**  
+El payload es legible; cualquiera puede fabricar un JSON. Hay que **verificar la firma** con la clave secreta y comprobar el vencimiento.
+
+**¿Qué función cumple JwtDecoder?**  
+Valida el JWT (firma HS256, formato y expiración) y entrega los claims para la seguridad de Spring.
+
+**¿Qué riesgos ocasionaría publicar la clave de firma?**  
+Un atacante podría emitir tokens falsos como ADMIN y acceder o modificar datos sin credenciales reales.
+
+### Lista de cotejo
+
+| Criterio | Estado |
+|----------|--------|
+| El proyecto inicia y conserva el CRUD | Logrado |
+| Login genera JWT firmado con vencimiento (30 min) | Logrado |
+| Consulta de productos requiere autenticación | Logrado |
+| USER no puede modificar productos | Logrado |
+| Reto: categorías protegidas por rol | Logrado |
+| Postman: 200, 401, 403 | Registrar capturas |
+| Explica autenticación vs autorización | Ver arriba |
+| Repositorio sin secretos ni tokens | No incluir `JWT_SECRET_BASE64` |
+
+---
+
+## Estructura del proyecto (CRUD)
+
+```
+Controllers/   Producto, Categoria, Proveedor, Etiqueta, Auth, Publico
+Services/      Producto, Categoria, Proveedor, Etiqueta, Token
+Repositories/  Producto, Categoria, Proveedor, Etiqueta
 Entity/        Producto, Categoria, Proveedor, Etiqueta
-DTO/           ProductoRequestDTO
+DTO/           Request/Response + LoginRequest/LoginResponse
+config/        SecurityConfig
 db/migration/  V1 … V4
 ```
+
+Capas: **Controller → Service → Repository → Entity**, con **DTO** de entrada/salida.
 
 ---
 

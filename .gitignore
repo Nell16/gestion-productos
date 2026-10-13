@@ -31,3 +31,9 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Secretos locales ###
+.env
+*.secret
+jwt.local.properties
+application-local.properties
